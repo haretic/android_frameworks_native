@@ -33,6 +33,7 @@
 #include <math.h>
 
 #include <android-base/logging.h>
+#include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <android/input.h>
 #include <com_android_input_flags.h>
@@ -377,6 +378,28 @@ TouchInputMapper::Parameters TouchInputMapper::computeParameters(
             parameters.orientation = ui::ROTATION_270;
         } else if (*orientationString != "ORIENTATION_0") {
             ALOGW("Invalid value for touch.orientation: '%s'", orientationString->c_str());
+        }
+    }
+
+    // Some devices select a different natural display orientation at boot. Apply
+    // its offset to the physical touchscreen, leaving virtual touch devices alone.
+    if (parameters.deviceType == Parameters::DeviceType::TOUCH_SCREEN) {
+        const auto property = config.getString("touch.orientationOffsetProperty");
+        if (property.has_value()) {
+            const int offset = base::GetIntProperty(*property, 0);
+            switch (offset) {
+                case 90:
+                    parameters.orientation = parameters.orientation + ui::ROTATION_90;
+                    break;
+                case 180:
+                    parameters.orientation = parameters.orientation + ui::ROTATION_180;
+                    break;
+                case 270:
+                    parameters.orientation = parameters.orientation + ui::ROTATION_270;
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
